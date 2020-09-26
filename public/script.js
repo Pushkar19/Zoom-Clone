@@ -1,9 +1,9 @@
 const socket = io("/");
 const videoGrid = document.getElementById("video-grid");
-const myPeer = new Peer(undefined, {
+var peer = new Peer(undefined, {
   path: "/peerjs",
   host: "/",
-  port: "443",
+  port: "3000",
 });
 let myVideoStream;
 const myVideo = document.createElement("video");
@@ -17,7 +17,10 @@ navigator.mediaDevices
   .then((stream) => {
     myVideoStream = stream;
     addVideoStream(myVideo, stream);
-    myPeer.on("call", (call) => {
+    socket.on("user-connected", (userId) => {
+      connectToNewUser(userId, stream);
+    });
+    peer.on("call", (call) => {
       call.answer(stream);
       const video = document.createElement("video");
       call.on("stream", (userVideoStream) => {
@@ -25,16 +28,13 @@ navigator.mediaDevices
       });
     });
 
-    socket.on("user-connected", (userId) => {
-      connectToNewUser(userId, stream);
-    });
     // input value
     let text = $("input");
     // when press enter send message
-    $("html").keydown(function (e) {
+    $("html").keydown((e) => {
       if (e.which == 13 && text.val().length !== 0) {
         socket.emit("message", text.val());
-        text.val("");
+        text.val(" ");
       }
     });
     socket.on("createMessage", (message) => {
@@ -47,22 +47,18 @@ socket.on("user-disconnected", (userId) => {
   if (peers[userId]) peers[userId].close();
 });
 
-myPeer.on("open", (id) => {
+peer.on("open", (id) => {
   socket.emit("join-room", ROOM_ID, id);
 });
 
-function connectToNewUser(userId, stream) {
-  const call = myPeer.call(userId, stream);
+const connectToNewUser = (userId, stream) => {
+  console.log(userId);
+  const call = peer.call(userId, stream);
   const video = document.createElement("video");
   call.on("stream", (userVideoStream) => {
     addVideoStream(video, userVideoStream);
   });
-  call.on("close", () => {
-    video.remove();
-  });
-
-  peers[userId] = call;
-}
+};
 
 function addVideoStream(video, stream) {
   video.srcObject = stream;
